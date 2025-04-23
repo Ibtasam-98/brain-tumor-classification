@@ -44,7 +44,7 @@ for kernel in kernels:
     print("Classification Report:\n",
           classification_report(y_test, y_test_pred, target_names=['glioma', 'meningioma', 'notumor', 'pituitary']))
 
-    # Plotting
+    # Plotting the metrics
     plot_classification_report(y_test, y_test_pred, kernel)
     plot_confusion_matrix(y_test, y_test_pred, kernel)
     plot_accuracy(train_accuracy, test_accuracy, kernel)
