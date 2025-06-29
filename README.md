@@ -1,17 +1,49 @@
 # Brain Tumor Classification using HOG and SVM
 
-This repository contains Python code for classifying brain tumors from MRI images. It utilizes the Histogram of Oriented Gradients (HOG) for feature extraction and Support Vector Machines (SVM) for classification into four categories: glioma, meningioma, notumor, and pituitary.
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![Scikit-learn](https://img.shields.io/badge/Scikit--learn-1.0%2B-orange)
+![OpenCV](https://img.shields.io/badge/OpenCV-4.5%2B-green)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## Overview
+## Table of Contents
+1. [Project Description](#project-description)
+2. [Features](#features)
+3. [Requirements](#requirements)
+4. [Installation](#installation)
+5. [Dataset Setup](#dataset-setup)
+6. [Code Execution](#code-execution)
+7. [File Structure](#file-structure)
+8. [Sample Output](#sample-output)
+9. [License](#license)
 
-The project is structured into the following Python files:
+## Project Description
+This repository contains a complete machine learning pipeline for classifying brain tumor MRI images into four categories:
+- Glioma
+- Meningioma
+- No tumor
+- Pituitary tumor
 
--   `data_loader.py`: Handles loading and preprocessing of image data from a specified directory structure.
--   `feature_extractor.py`: Implements the HOG feature extraction method.
--   `model.py`: Defines and trains the SVM classification model with different kernel options.
--   `evaluation.py`: Contains functions for evaluating the trained model, including generating classification reports, confusion matrices, and accuracy plots.
--   `main.py`: The main script that orchestrates the data loading, feature extraction, model training, prediction, and evaluation process.
+The system uses Histogram of Oriented Gradients (HOG) for feature extraction combined with color histograms, and evaluates Support Vector Machines (SVM) with different kernels for classification.
 
-## Dataset
+## Features
+- **Image Preprocessing**: Automatic resizing and color conversion
+- **Feature Extraction**: HOG + Color Histograms
+- **Model Training**: SVM with 3 kernel types (Linear, Polynomial, RBF)
+- **Hyperparameter Tuning**: Automated grid search for optimal parameters
+- **Evaluation Metrics**:
+  - Classification reports (precision, recall, F1-score)
+  - Confusion matrices
+  - ROC curves (for probabilistic models)
+  - Learning curves
 
-The code assumes a dataset directory named `dataset` in the same root directory as the scripts. This directory should be organized as follows:
+## Requirements
+- Python 3.8+
+- Required packages:
+  ```text
+  numpy>=1.21.0
+  scikit-learn>=1.0.0
+  opencv-python>=4.5.0
+  matplotlib>=3.5.0
+  seaborn>=0.11.0
+  tqdm>=4.62.0
+  joblib>=1.1.0
