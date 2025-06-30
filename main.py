@@ -1,10 +1,13 @@
 import numpy as np
+from sklearn.metrics import accuracy_score
+
 from data_loader import load_dataset
 from feature_extraction import extract_hog_features, extract_color_histogram
-from model import train_svm, tune_hyperparameters, plot_learning_curve, save_model
-from evaluation import plot_classification_report, plot_confusion_matrix, plot_roc_curves
-from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
+from model import (train_svm, plot_combined_learning_curves,
+                   plot_combined_confusion_matrices,
+                   plot_combined_roc_curves,
+                   plot_combined_classification_reports,
+                   save_model, plot_accuracy_comparison)
 import time
 
 
@@ -19,7 +22,7 @@ def main():
     X_train_hog = extract_hog_features(X_train)
     X_test_hog = extract_hog_features(X_test)
 
-    # Optional: Combine with color histograms
+    # Combine with color histograms
     X_train_hist = extract_color_histogram(X_train)
     X_test_hist = extract_color_histogram(X_test)
 
@@ -29,53 +32,71 @@ def main():
 
     # SVM kernels to evaluate
     kernels = ['linear', 'poly', 'rbf']
-    best_models = {}
+    models = {}
+    preds_dict = {}
+    probs_dict = {}
+    train_accuracies = {}
+    test_accuracies = {}
 
+    # Train and evaluate all models
     for kernel in kernels:
         print(f"\n{'=' * 50}\nEvaluating {kernel} kernel\n{'=' * 50}")
         start_time = time.time()
 
-        # Hyperparameter tuning
-        print("\nTuning hyperparameters...")
-        best_model = tune_hyperparameters(X_train_features, y_train, kernel)
+        # Train model
+        print("\nTraining model...")
+        models[kernel] = train_svm(X_train_features, y_train, kernel)
 
-        # Training final model
-        print("\nTraining final model...")
-        best_model.fit(X_train_features, y_train)
+        # Make predictions
+        y_train_pred = models[kernel].predict(X_train_features)
+        y_test_pred = models[kernel].predict(X_test_features)
+        y_test_prob = models[kernel].predict_proba(X_test_features)
 
-        # Predictions
-        y_train_pred = best_model.predict(X_train_features)
-        y_test_pred = best_model.predict(X_test_features)
-        y_test_prob = best_model.predict_proba(X_test_features)
-
-        # Evaluation
+        # Calculate accuracies
         train_acc = accuracy_score(y_train, y_train_pred)
         test_acc = accuracy_score(y_test, y_test_pred)
 
+        # Store results
+        preds_dict[kernel] = y_test_pred
+        probs_dict[kernel] = y_test_prob
+        train_accuracies[kernel] = train_acc
+        test_accuracies[kernel] = test_acc
+
         print(f"\nTraining Accuracy ({kernel}): {train_acc:.4f}")
         print(f"Testing Accuracy ({kernel}): {test_acc:.4f}")
+        print(f"Time taken: {time.time() - start_time:.2f} seconds")
 
-        # Visualization
-        plot_learning_curve(best_model, X_train_features, y_train, kernel)
-        plot_classification_report(y_test, y_test_pred, class_names, kernel)
-        plot_confusion_matrix(y_test, y_test_pred, class_names, kernel)
-        plot_roc_curves(y_test, y_test_prob, class_names, kernel)
+    # Generate all visualizations
+    print("\nGenerating visualizations...")
 
-        # Save best model
-        best_models[kernel] = {
-            'model': best_model,
-            'test_accuracy': test_acc,
-            'time': time.time() - start_time
-        }
+    # 1. Accuracy comparison bar chart
+    plot_accuracy_comparison(train_accuracies, test_accuracies)
 
-    # Compare all models
-    print("\nModel Comparison:")
-    for kernel, results in best_models.items():
-        print(f"{kernel.upper()} Kernel - Accuracy: {results['test_accuracy']:.4f}, Time: {results['time']:.2f}s")
+    # 2. Learning curves comparison
+    plot_combined_learning_curves(
+        [models[k] for k in kernels],
+        X_train_features, y_train,
+        kernels
+    )
 
-    # Save the best performing model
-    best_kernel = max(best_models, key=lambda x: best_models[x]['test_accuracy'])
-    save_model(best_models[best_kernel]['model'], f'best_svm_{best_kernel}.joblib')
+    # 3. Confusion matrices comparison
+    plot_combined_confusion_matrices(
+        y_test, preds_dict, class_names
+    )
+
+    # 4. ROC curves comparison
+    plot_combined_roc_curves(
+        y_test, probs_dict, class_names
+    )
+
+    # 5. Classification reports comparison
+    plot_combined_classification_reports(
+        y_test, preds_dict, class_names
+    )
+
+    # Save the best performing model based on test accuracy
+    best_kernel = max(test_accuracies, key=test_accuracies.get)
+    save_model(models[best_kernel], f'best_svm_{best_kernel}.joblib')
     print(f"\nBest model ({best_kernel} kernel) saved to best_svm_{best_kernel}.joblib")
 
 
