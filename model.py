@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import warnings
 from joblib import dump, load
+from tabulate import tabulate
 
 
 def train_svm(X_train, y_train, kernel='linear'):
@@ -41,6 +42,134 @@ def train_svm(X_train, y_train, kernel='linear'):
     return svm
 
 
+def print_learning_curve_data(model, X, y, kernel_name):
+    """Print learning curve data to terminal"""
+    min_class_count = np.min(np.bincount(y))
+    cv = StratifiedKFold(n_splits=min(5, min_class_count), shuffle=True, random_state=42)
+
+    train_sizes, train_scores, test_scores = learning_curve(
+        model, X, y, cv=cv, n_jobs=-1,
+        train_sizes=np.linspace(0.1, 1.0, 5),  # Reduced points for cleaner output
+        scoring='accuracy'
+    )
+
+    print(f"\nLearning Curve Data for {kernel_name} Kernel:")
+    print("-" * 80)
+    print(f"{'Training Examples':<20}{'Mean Train Accuracy':<20}{'Mean CV Accuracy':<20}")
+    print("-" * 80)
+    for size, train, test in zip(train_sizes,
+                                 np.mean(train_scores, axis=1),
+                                 np.mean(test_scores, axis=1)):
+        print(f"{int(size):<20}{train:<20.4f}{test:<20.4f}")
+
+
+def print_confusion_matrices(y_true, y_pred, class_names, kernel_name):
+    """Print confusion matrices to terminal"""
+    cm = confusion_matrix(y_true, y_pred)
+    cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    print(f"\nConfusion Matrix for {kernel_name} Kernel (Raw Counts):")
+    print("-" * 80)
+    print(tabulate(cm, headers=class_names, showindex=class_names, tablefmt='grid'))
+
+    print(f"\nNormalized Confusion Matrix for {kernel_name} Kernel:")
+    print("-" * 80)
+    print(tabulate(np.round(cm_norm, 4), headers=class_names, showindex=class_names, tablefmt='grid'))
+
+
+def print_classification_report(y_true, y_pred, class_names, kernel_name):
+    """Print classification report to terminal"""
+    report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+
+    print(f"\nClassification Report for {kernel_name} Kernel:")
+    print("-" * 80)
+    print(tabulate(pd.DataFrame(report).transpose().round(4), headers='keys', tablefmt='grid'))
+
+
+def print_roc_metrics(y_true, y_prob, class_names, kernel_name):
+    """Print ROC/AUC metrics to terminal"""
+    y_true_bin = label_binarize(y_true, classes=np.arange(len(class_names)))
+    roc_data = []
+
+    print(f"\nROC/AUC Metrics for {kernel_name} Kernel:")
+    print("-" * 80)
+    for i, class_name in enumerate(class_names):
+        fpr, tpr, _ = roc_curve(y_true_bin[:, i], y_prob[:, i])
+        roc_auc = auc(fpr, tpr)
+        roc_data.append([class_name, f"{roc_auc:.4f}"])
+
+    print(tabulate(roc_data, headers=['Class', 'AUC Score'], tablefmt='grid'))
+
+
+def print_kernel_results(X_train, y_train, y_true, y_pred, y_prob, class_names, kernel_name, train_acc=None):
+    """Print all results for a single kernel"""
+    print("\n" + "=" * 80)
+    print(f"COMPLETE RESULTS FOR {kernel_name.upper()} KERNEL".center(80))
+    print("=" * 80)
+
+    # Print accuracy
+    test_acc = accuracy_score(y_true, y_pred)
+    print("\nACCURACY SCORES:")
+    print("-" * 80)
+    if train_acc is not None:
+        print(f"Training Accuracy: {train_acc:.4f}")
+    print(f"Testing Accuracy:  {test_acc:.4f}")
+
+    # Print learning curve data
+    print_learning_curve_data(train_svm(X_train, y_train, kernel_name), X_train, y_train, kernel_name)
+
+    # Print confusion matrices
+    print_confusion_matrices(y_true, y_pred, class_names, kernel_name)
+
+    # Print classification report
+    print_classification_report(y_true, y_pred, class_names, kernel_name)
+
+    # Print ROC metrics
+    print_roc_metrics(y_true, y_prob, class_names, kernel_name)
+
+    print("\n" + "=" * 80 + "\n")
+
+
+def print_combined_results(results_dict, class_names):
+    """Print combined comparison of all kernels"""
+    print("\n" + "=" * 80)
+    print("COMBINED RESULTS COMPARISON".center(80))
+    print("=" * 80)
+
+    # Accuracy comparison
+    print("\nACCURACY COMPARISON:")
+    print("-" * 80)
+    acc_table = []
+    for kernel, results in results_dict.items():
+        acc_table.append([
+            kernel,
+            f"{results.get('train_acc', np.nan):.4f}",
+            f"{results['test_acc']:.4f}",
+            f"{results['test_acc'] - results.get('train_acc', results['test_acc']):.4f}"
+        ])
+    print(tabulate(acc_table,
+                   headers=['Kernel', 'Train Acc', 'Test Acc', 'Difference'],
+                   tablefmt='grid'))
+
+    # ROC AUC comparison
+    print("\nROC AUC COMPARISON:")
+    print("-" * 80)
+    roc_table = []
+    for kernel, results in results_dict.items():
+        row = [kernel]
+        y_true_bin = label_binarize(results['y_true'], classes=np.arange(len(class_names)))
+        for i in range(len(class_names)):
+            fpr, tpr, _ = roc_curve(y_true_bin[:, i], results['y_prob'][:, i])
+            row.append(f"{auc(fpr, tpr):.4f}")
+        roc_table.append(row)
+    print(tabulate(roc_table,
+                   headers=['Kernel'] + class_names,
+                   tablefmt='grid'))
+
+    print("\n" + "=" * 80 + "\n")
+
+
+# Visualization functions (unchanged from original)
 def plot_combined_learning_curves(models, X, y, kernel_names):
     plt.figure(figsize=(12, 8))
     colors = ['blue', 'green', 'red']
@@ -49,14 +178,16 @@ def plot_combined_learning_curves(models, X, y, kernel_names):
         min_class_count = np.min(np.bincount(y))
         cv = StratifiedKFold(n_splits=min(5, min_class_count), shuffle=True, random_state=42)
 
-        train_sizes, _, test_scores = learning_curve(
+        train_sizes, train_scores, test_scores = learning_curve(
             model, X, y, cv=cv, n_jobs=-1,
             train_sizes=np.linspace(0.1, 1.0, 10),
             scoring='accuracy'
         )
 
+        plt.plot(train_sizes, np.mean(train_scores, axis=1), 'o--', color=color,
+                 label=f'{kernel} (Train)')
         plt.plot(train_sizes, np.mean(test_scores, axis=1), 'o-', color=color,
-                 label=f'{kernel} (CV Accuracy)')
+                 label=f'{kernel} (CV)')
 
     plt.title('Learning Curves Comparison', fontsize=14)
     plt.xlabel('Training Examples', fontsize=12)
@@ -94,7 +225,6 @@ def plot_combined_roc_curves(y_true, probs_dict, class_names):
     colors = ['blue', 'green', 'red', 'purple']
     linestyles = ['-', '--', ':']
 
-    # Binarize the output
     y_true_bin = label_binarize(y_true, classes=np.arange(len(class_names)))
 
     for i, class_name in enumerate(class_names):
@@ -157,7 +287,6 @@ def plot_accuracy_comparison(train_acc_dict, test_acc_dict):
     plt.legend(loc='upper right')
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
 
-    # Add value labels on top of each bar
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
@@ -168,6 +297,7 @@ def plot_accuracy_comparison(train_acc_dict, test_acc_dict):
     plt.tight_layout()
     plt.savefig('accuracy_comparison.png', dpi=300)
     plt.show()
+
 
 def save_model(model, filename):
     dump(model, filename)

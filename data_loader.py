@@ -1,8 +1,8 @@
+# data_loader.py
 import os
 import cv2
 import numpy as np
 from sklearn.utils import shuffle
-
 
 def load_images_from_folder(folder, label):
     images = []
@@ -13,13 +13,12 @@ def load_images_from_folder(folder, label):
             img = cv2.imread(img_path)
             if img is not None:
                 img = cv2.resize(img, (100, 100))
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 images.append(img)
                 labels.append(label)
         except Exception as e:
             print(f"Error loading {img_path}: {str(e)}")
     return np.array(images), np.array(labels)
-
 
 def load_dataset(root_folder):
     categories = ['glioma', 'meningioma', 'notumor', 'pituitary']
@@ -38,11 +37,9 @@ def load_dataset(root_folder):
         X_test.extend(test_images)
         y_test.extend(test_labels)
 
-    # Convert to numpy arrays and shuffle
     X_train, y_train = shuffle(np.array(X_train), np.array(y_train), random_state=42)
     X_test, y_test = shuffle(np.array(X_test), np.array(y_test), random_state=42)
 
     print(f"Training set shape: {X_train.shape}, Test set shape: {X_test.shape}")
     print(f"Class distribution - Train: {np.bincount(y_train)}, Test: {np.bincount(y_test)}")
-
     return X_train, y_train, X_test, y_test
