@@ -78,7 +78,6 @@ def print_confusion_matrices(y_true, y_pred, class_names, kernel_name):
 
 
 def print_classification_report(y_true, y_pred, class_names, kernel_name):
-    """Print classification report to terminal"""
     report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
     print(f"\nClassification Report for {kernel_name} Kernel:")
